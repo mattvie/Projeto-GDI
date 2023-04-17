@@ -117,7 +117,7 @@ CREATE TABLE TOCA(
 	ID_INSTRUMENTO INT,
 	ID_MUS INT,
 	ID_NUM INT,
-	CONSTRAINT FK_ID_CANTA FOREIGN KEY (ID_CANTA,ID_MUS,ID_NUM) REFERENCES CANTA(ID,NUM,ID_ART),
+	CONSTRAINT FK_ID_CANTA FOREIGN KEY (ID_CANTA,ID_NUM,ID_MUS) REFERENCES CANTA(ID, NUM, ID_ART),
 	CONSTRAINT FK_ID_INSTRUMENTO FOREIGN KEY (ID_INSTRUMENTO) REFERENCES INSTRUMENTO(ID),
 	CONSTRAINT PK_TOCA PRIMARY KEY (ID_CANTA, ID_INSTRUMENTO)
 
@@ -370,4 +370,204 @@ INSERT INTO ORGANIZACAO (NOME)
 VALUES ('BET Awards');
 INSERT INTO ORGANIZACAO (NOME)
 VALUES ('Multishow Brazilian Music Award');
---------------------------------------------------------------
+---------------------- MUSICAS ----------------------------------------
+CREATE OR REPLACE TRIGGER TRG_INSERE_MUSICA
+BEFORE INSERT ON MUSICA
+FOR EACH ROW
+DECLARE
+    V_GRAVADORA_ID GRAVADORA.ID%TYPE;
+BEGIN
+    SELECT ID INTO V_GRAVADORA_ID FROM GRAVADORA WHERE ROWNUM = 1 ORDER BY DBMS_RANDOM.VALUE;
+    :NEW.ID := V_GRAVADORA_ID;
+END;
+/
+
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (4,3,'Câmeras','Pop');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (0,2,'Ela','Forró');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (3,5,'Quando lhe deu','Eletrônica');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (5,9,'Declarava que João','Eletrônica');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (5,7,'Se lembrou','Rock');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (6,1,'Resposta','Funk');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (3,9,'E chorou','Pop');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (9,10,'Marasmo da fazenda','Reggae');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (1,2,'Olhada no meu','Pop');
+INSERT INTO MUSICA (ID,NUM,NOME,GENERO)
+VALUES (9,8,'Senhor de alta','Rap');
+
+
+----------------heranças-----------
+CREATE OR REPLACE TRIGGER TRG_INS_ADMIN
+BEFORE INSERT ON ADMIN
+FOR EACH ROW
+DECLARE
+    V_ID_USUARIO VARCHAR(15);
+BEGIN
+    SELECT CPF INTO V_ID_USUARIO
+    FROM USUARIO
+    WHERE ROWNUM = 1
+    ORDER BY DBMS_RANDOM.VALUE;
+
+    :NEW.ID := V_ID_USUARIO;
+END;
+/
+------------- admin --------------
+INSERT INTO ADMIN (CARGO)
+VALUES ('Estudante');
+INSERT INTO ADMIN (CARGO)
+VALUES ('Presidente');
+INSERT INTO ADMIN (CARGO)
+VALUES ('Arquiteto');
+INSERT INTO ADMIN (CARGO)
+VALUES ('Médico');
+INSERT INTO ADMIN (CARGO)
+VALUES ('Designer');
+INSERT INTO ADMIN (CARGO)
+VALUES ('Operador');
+INSERT INTO ADMIN (CARGO)
+VALUES ('Analista');
+INSERT INTO ADMIN (CARGO)
+VALUES ('Engenheiro');
+
+------------ comum --------------
+
+CREATE OR REPLACE PROCEDURE INSERIR_COMUM AS
+  v_cpf VARCHAR(15);
+  contagem numeric := 17;
+BEGIN
+	FOR i IN 1..contagem LOOP
+  -- Busca um CPF que não esteja presente nas tabelas ADMIN ou COMUM
+  SELECT CPF INTO v_cpf
+  FROM USUARIO
+  WHERE CPF NOT IN (SELECT ID FROM ADMIN UNION SELECT ID FROM COMUM);
+
+  -- Se um CPF foi encontrado, faz o insert na tabela COMUM
+  IF v_cpf IS NOT NULL THEN
+    INSERT INTO COMUM(ID) VALUES (v_cpf);
+    DBMS_OUTPUT.PUT_LINE('CPF ' || v_cpf || ' inserido com sucesso na tabela COMUM.');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('Todos os CPFs já estão cadastrados nas tabelas ADMIN ou COMUM.');
+  END IF;
+  END LOOP;
+END;
+/
+------------------ CANTA -------------------------
+CREATE OR REPLACE PROCEDURE INSERE_CANTA AS
+    ID_MUSICA MUSICA.ID%TYPE;
+    NUM_MUSICA MUSICA.NUM%TYPE;
+    ID_ARTISTA ARTISTA.ID%TYPE;
+	contagem numeric := 20;
+BEGIN
+	FOR i IN 1..contagem LOOP
+    SELECT ID, NUM INTO ID_MUSICA, NUM_MUSICA FROM MUSICA ORDER BY DBMS_RANDOM.VALUE FETCH FIRST 1 ROWS ONLY;
+    SELECT ID INTO ID_ARTISTA FROM ARTISTA ORDER BY DBMS_RANDOM.VALUE FETCH FIRST 1 ROWS ONLY;
+    INSERT INTO CANTA (ID, NUM, ID_ART) VALUES (ID_MUSICA, NUM_MUSICA, ID_ARTISTA);
+	END LOOP;
+END;
+/
+----------- CONSOME -----------
+
+CREATE OR REPLACE PROCEDURE INSERE_CONSOME AS
+    v_id MUSICA.ID%TYPE;
+    v_num MUSICA.NUM%TYPE;
+    v_cpf USUARIO.CPF%TYPE;
+	contagem numeric := 20;
+BEGIN
+	FOR i IN 1..contagem LOOP
+    -- seleciona aleatoriamente um ID e um NUM da tabela MUSICA
+    SELECT ID, NUM INTO v_id, v_num FROM MUSICA ORDER BY dbms_random.value() FETCH FIRST 1 ROWS ONLY;
+    
+    -- seleciona aleatoriamente um CPF da tabela USUARIO
+    SELECT CPF INTO v_cpf FROM USUARIO WHERE ROWNUM = 1 ORDER BY dbms_random.value();
+    
+    -- faz o insert na tabela CONSOME
+    INSERT INTO CONSOME (CPF, ID, NUM) VALUES (v_cpf, v_id, v_num);
+    
+    -- confirma o insert
+    DBMS_OUTPUT.PUT_LINE('Insert realizado com sucesso');
+	END LOOP;
+END;
+/
+
+------------TOCA-----------------
+
+CREATE OR REPLACE PROCEDURE P_INSERT_TOCA AS
+  v_id_canta canta.id%TYPE;
+  v_id_mus canta.num%TYPE;
+  v_id_num canta.id_art%TYPE;
+  v_id_instru instrumento.id%TYPE;
+  contagem numeric := 20;
+BEGIN
+	FOR i IN 1..contagem LOOP
+  -- seleciona aleatoriamente um ID_CANTA, ID_MUS e ID_NUM da tabela CANTA
+  SELECT id, num, id_art
+  INTO v_id_canta, v_id_mus, v_id_num
+  FROM canta
+  ORDER BY dbms_random.value
+  FETCH FIRST 1 ROW ONLY;
+
+  -- seleciona aleatoriamente um ID_INSTRUMENTO da tabela INSTRUMENTO
+  SELECT id
+  INTO v_id_instru
+  FROM instrumento
+  ORDER BY dbms_random.value
+  FETCH FIRST 1 ROW ONLY;
+
+  -- insere na tabela TOCA
+  INSERT INTO toca (id_canta, id_instrumento, id_mus, id_num)
+  VALUES (v_id_canta, v_id_instru, v_id_mus, v_id_num);
+
+  -- exibe mensagem de confirmação
+  DBMS_OUTPUT.PUT_LINE('Inserido na tabela TOCA: ' || v_id_canta || ', ' || v_id_instru);
+  END LOOP;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE INSERE_GANHA AS
+    v_id_categoria GANHA.ID_CATEGORIA%TYPE;
+    v_id_org GANHA.ID_ORGANIZACAO%TYPE;
+    v_id_mus GANHA.ID_MUSICA%TYPE;
+    v_id_num GANHA.ID_NUM%TYPE;
+	contagem numeric := 20;
+BEGIN
+
+	FOR i IN 1..contagem LOOP
+    SELECT ID INTO v_id_categoria
+    FROM CATEGORIA
+    ORDER BY DBMS_RANDOM.VALUE
+    FETCH FIRST 1 ROW ONLY;
+    
+    SELECT ID INTO v_id_org
+    FROM ORGANIZACAO
+    ORDER BY DBMS_RANDOM.VALUE
+    FETCH FIRST 1 ROW ONLY;
+    
+    SELECT ID, NUM INTO v_id_mus, v_id_num
+    FROM MUSICA
+    WHERE NUM IS NOT NULL
+    ORDER BY DBMS_RANDOM.VALUE
+    FETCH FIRST 1 ROW ONLY;
+    
+    INSERT INTO GANHA (ID_CATEGORIA, ID_ORGANIZACAO, ID_MUSICA, ID_NUM)
+    VALUES (v_id_categoria, v_id_org, v_id_mus, v_id_num);
+    
+    DBMS_OUTPUT.PUT_LINE('INSERT realizado com sucesso.');
+	END LOOP;
+END;
+/
+
+BEGIN
+INSERE_CONSOME;
+INSERE_CANTA;
+INSERIR_COMUM;
+P_INSERT_TOCA;
+INSERE_GANHA;
+END;
